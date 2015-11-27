@@ -5,50 +5,52 @@
 
 require 'haml'
 require 'mail'
+require 'yaml'
+require 'fileutils'
+
+def collect_multipart(part)
+  if part.multipart?
+    part.parts.map { |p| collect_multipart(p) }.join
+  else
+    part.body if part.content_type.start_with?('text/plain')
+  end
+end
+
+$config = YAML.load( File.open('config.yml') )
 
 mail = Mail.new(STDIN.read)
 
 puts mail.from
 puts mail.to
 puts mail.subject
-puts mail.date.to_s
 #puts mail.body.decoded    #=> 'This is the body of the email...
-
-puts mail.multipart?
-
-puts ">>>: #{mail.body.decoded}" if !mail.multipart?
 
 puts "Parts: #{mail.parts.count}"
 puts "Attach: #{mail.parts.attachments.count}"
 
-mail.parts.map { |p|
-  if p.content_type.start_with?('text/plain')
-    puts p.body
-  elsif !p.content_type.start_with?('image/')
-    if p.multipart?
-      puts p.parts.count
-      p.parts.map { |p|
-        puts p.content_type
-        puts p.body
-      }
-    end
-  end
-}
+puts "Text: <#{collect_multipart(mail)}>"
 
-puts __dir__
+path_prefix = mail.date.strftime("%Y-%m/%d%H%M%S")
+db_path = "#{__dir__}/#{path_prefix}"
+attachments_path = "#{__dir__}/#{path_prefix}"
+puts db_path
+
+begin
+  FileUtils.mkpath(db_path)
+  FileUtils.mkpath(attachments_path)
+  File.open("#{db_path}/post", "w+b", 0644) {|f| f.write collect_multipart(mail)}
+rescue => e
+  puts "Unable to save data for #{attachments_path} because #{e.message}"
+end
+
 
 mail.attachments.each do | attachment |
-  # Attachments is an AttachmentsList object containing a
-  # number of Part objects
   if (attachment.content_type.start_with?('image/'))
-    # extracting images for example...
-    filename = attachment.filename
+    filename = "#{attachments_path}/#{attachment.filename}"
     begin
-      File.open("#{__dir__}/#{filename}", "w+b", 0644) {|f| f.write attachment.body.decoded}
+      File.open("#{filename}", "w+b", 0644) {|f| f.write attachment.body.decoded}
     rescue => e
       puts "Unable to save data for #{filename} because #{e.message}"
     end
-  else
-    puts attachment.content_type
   end
 end
