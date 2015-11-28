@@ -23,7 +23,6 @@ mail = Mail.new(STDIN.read)
 puts mail.from
 puts mail.to
 puts mail.subject
-#puts mail.body.decoded    #=> 'This is the body of the email...
 
 puts "Parts: #{mail.parts.count}"
 puts "Attach: #{mail.parts.attachments.count}"
