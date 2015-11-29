@@ -34,11 +34,6 @@ module Ajika
   # top-level. Subclassing Ajika::Base is highly recommended for
   # modular applications.
   class Application < Base
-    def self.register(*extensions, &block) #:nodoc:
-      added_methods = extensions.map {|m| m.public_instance_methods }.flatten
-      Delegator.delegate(*added_methods)
-      super(*extensions, &block)
-    end
   end
 
   # Ajika delegation mixin. Mixing this module into an object causes all
@@ -63,40 +58,5 @@ module Ajika
     end
 
     self.target = Application
-  end
-
-  class Wrapper
-    def initialize(stack, instance)
-      @stack, @instance = stack, instance
-    end
-
-    def settings
-      @instance.settings
-    end
-
-    def call(env)
-      @stack.call(env)
-    end
-
-    def inspect
-      "#<#{@instance.class} app_file=#{settings.app_file.inspect}>"
-    end
-  end
-
-  # Create a new Ajika application; the block is evaluated in the class scope.
-  def self.new(base = Base, &block)
-    base = Class.new(base)
-    base.class_eval(&block) if block_given?
-    base
-  end
-
-  # Extend the top-level DSL with the modules provided.
-  def self.register(*extensions, &block)
-    Delegator.target.register(*extensions, &block)
-  end
-
-  # Use the middleware for classic applications.
-  def self.use(*args, &block)
-    Delegator.target.use(*args, &block)
   end
 end
