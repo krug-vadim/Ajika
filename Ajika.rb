@@ -20,6 +20,10 @@ $config = YAML.load( File.open('config.yml') )
 
 mail = Mail.new(STDIN.read)
 
+puts mail['from']
+puts mail.methods.sort.inspect
+mail.header_fields.each do |header| puts "#{header.name} == #{header.value}" end
+raise
 puts mail.from
 puts mail.to
 puts mail.subject
