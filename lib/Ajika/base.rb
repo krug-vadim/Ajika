@@ -36,13 +36,13 @@ module Ajika
     def add_action(name, *actions)
       puts "adding action #{name}: #{actions.inspect}"
 
-      @actions[name] = lambda do |meta, text|
-        actions.each { |action| action.call(meta, text) }
+      @actions[name] = lambda do |meta, text, attachments|
+        actions.each { |action| action.call(meta, text, attachments) }
         #constraints.map{ |c| make_constraint(name, c) }.inject(true) { |p,d| p &= d.call(mail) }
       end
     end
 
-    def parse(mail, meta, text)
+    def parse(mail, meta, text, attachments)
       valid = @constraints.inject(true) do |product, constraint|
         print "checking #{constraint[0]}... "
         test = constraint[-1].call(mail)
@@ -56,7 +56,7 @@ module Ajika
 
       @actions.each do |name, action|
         puts "running action: #{name}"
-        action.call(meta, text)
+        action.call(meta, text, attachments)
       end
     end
   end
@@ -79,7 +79,7 @@ module Ajika
         if part.multipart?
           part.parts.map { |p| collect_multipart(p) }.join
         else
-          part.body if part.content_type.start_with?('text/plain')
+          part.body.decoded if part.content_type.start_with?('text/plain')
         end
       end
 
@@ -89,9 +89,16 @@ module Ajika
         meta = {:date => mail.date}
         text = collect_multipart(mail)
 
+        attachments = {}
+        mail.attachments.each do | attachment |
+          if (attachment.content_type.start_with?('image/'))
+            attachments[attachment.filename] = attachment.body.decoded
+          end
+        end
+
         @categories.each do |category|
           puts "Trying #{category.name}..."
-          category.parse(mail, meta, text)
+          category.parse(mail, meta, text, attachments)
         end
       end
 

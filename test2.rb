@@ -7,18 +7,19 @@ require 'redcarpet'
 require_relative 'lib/Ajika'
 
 category 'blog' do
-	if_from    ['from@you.to']
-	if_to      ['post@post.io']
+	#if_from    ['from@you.to']
+	#if_to      ['post@post.io']
 	if_subject //
 	#if_key     'key'
 
-	action 'db' do |mail, text|
+	action 'db' do |mail, text, attachments|
 		path_suffix = mail[:date].strftime("%Y-%m/%d%H%M%S")
 		db_path = "#{__dir__}/#{path_suffix}"
 		attachments_path = "#{__dir__}/#{path_suffix}"
 
 		puts db_path
 		puts attachments_path
+		puts attachments.inspect
 
 		begin
 			FileUtils.mkpath(db_path)
@@ -26,28 +27,31 @@ category 'blog' do
 
 			File.open("#{db_path}/post", "w+b", 0644) {|f| f.write text}
 
-			attachments.each do | attachment |
-				if (attachment.content_type.start_with?('image/'))
-					filename = "#{attachments_path}/#{attachment.filename}"
-					File.open("#{filename}", "w+b", 0644) {|f| f.write attachment.body.decoded}
-				end
+			attachments.each do |name, data|
+				filename = "#{attachments_path}/#{name}"
+				File.open("#{filename}", "w+b", 0644) {|f| f.write data}
 			end
 		rescue => e
 			puts "Unable to save data for #{attachments_path} because #{e.message}"
 		end
 	end
 
-	action 'page' do |mail, text|
+	action 'page' do |mail, text, attachments|
 		path_suffix = mail[:date].strftime("%Y-%m/%d%H%M%S")
-		render_path = "#{__dir__}/#{path_suffix}"
+		render_path = "#{__dir__}/www/#{path_suffix}"
 
 		puts render_path
 
-		text = Haml::Engine.new(File.read('template.haml', :encoding => 'UTF-8')).render do
+		html = Haml::Engine.new(File.read('template.haml', :encoding => 'ASCII-8BIT')).render do
 			Redcarpet::Markdown.new(Redcarpet::Render::HTML.new).render(text)
 		end
 
-		puts text
+		begin
+			FileUtils.mkpath(render_path)
+			File.open("#{render_path}/index.html", "w+b", 0644) {|f| f.write html}
+		rescue => e
+			puts "Unable to save data for #{attachments_path} because #{e.message}"
+		end
 	end
 end
 
