@@ -1,46 +1,63 @@
 require 'mail'
-require 'fileutils'
 
 module Ajika
   CONSTRAINT_REGEXP = /^if_(\w+)$/
-  # Execution context for classic style (top-level) applications. All
-  # DSL methods executed on main are delegated to this class.
-  #
-  # The Application class should not be subclassed, unless you want to
-  # inherit all settings, routes, handlers, and error pages from the
-  # top-level. Subclassing Ajika::Base is highly recommended for
-  # modular applications.
+  ACTION_REGEXP = /^do_(\w+)$/
+
   class Category
     attr_reader :name
 
     def initialize name
       @name = name
       @constraints = {}
+      @actions = {}
     end
 
-    def add_constraint(name, *constraint)
-      puts "adding constraint #{name}: #{constraint.inspect}"
-      if constraint.is_a? String
-        @constraints[name] = lambda { |mail| mail.send(name.to_sym) == constraint }
-      elsif constraint.is_a? Array
-        @constraints[name] = lambda { |mail| mail.send(name.to_sym) == constraint }
+    def make_constraint(name, constraint)
+      if constraint.is_a?(String) || constraint.is_a?(Fixnum) || constraint.is_a?(Array)
+        lambda { |mail| mail.send(name.to_sym) == constraint }
       elsif constraint.is_a? Regexp
-        @constraints[name] = lambda { |mail| mail.send(name.to_sym) =~ constraint }
+        lambda { |mail| mail.send(name.to_sym) =~ constraint }
       elsif constraint.is_a? Proc
-        @constraints[name] = lambda { |mail| constraint.call(mail.send(name.to_sym)) }
+        lambda { |mail| constraint.call(mail.send(name.to_sym)) }
+      else
+        raise "Wrong constraint type: #{constraint.class}"
       end
     end
 
-    def parse data
+    def add_constraint(name, *constraints)
+      puts "adding constraint #{name}: #{constraints.inspect}"
+
+      @constraints[name] = lambda do |mail|
+        constraints.map{ |c| make_constraint(name, c) }.inject(true) { |p,d| p &= d.call(mail) }
+      end
+    end
+
+    def add_action(name, *actions)
+      puts "adding action #{name}: #{actions.inspect}"
+
+      @actions[name] = lambda do |meta, text|
+        actions.each { |action| action.call(meta, text) }
+        #constraints.map{ |c| make_constraint(name, c) }.inject(true) { |p,d| p &= d.call(mail) }
+      end
+    end
+
+    def parse(mail, meta, text)
       valid = @constraints.inject(true) do |product, constraint|
         print "checking #{constraint[0]}... "
-        test = constraint[-1].call(data)
+        test = constraint[-1].call(mail)
         product &= test
         puts (test ? 'OK' : 'Fail')
         product
       end
 
       puts "#{name} is #{valid}"
+      return if !valid
+
+      @actions.each do |name, action|
+        puts "running action: #{name}"
+        action.call(meta, text)
+      end
     end
   end
 
@@ -50,6 +67,12 @@ module Ajika
         @categories ||= []
         @categories << Category.new(name)
         yield self if block_given?
+      end
+
+      def action (name, &block)
+        return if !block
+        puts "we need action #{name}"
+        @categories[-1].add_action(name, block)
       end
 
       def collect_multipart(part)
@@ -63,9 +86,12 @@ module Ajika
       def run data
         mail = Mail.new(data)
 
+        meta = {:date => mail.date}
+        text = collect_multipart(mail)
+
         @categories.each do |category|
           puts "Trying #{category.name}..."
-          category.parse(mail)
+          category.parse(mail, meta, text)
         end
       end
 
@@ -74,7 +100,10 @@ module Ajika
 
         if args.first =~ CONSTRAINT_REGEXP
           puts "we need check #{$1}"
-          @categories[-1].add_constraint $1, *args[1..-1]
+          @categories[-1].add_constraint($1, *args[1..-1])
+        elsif args.first =~ ACTION_REGEXP
+          puts "we need action #{$1}"
+          @categories[-1].add_action($1, *args[1..-1])
         end
       end
     end
