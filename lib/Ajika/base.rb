@@ -18,22 +18,25 @@ module Ajika
       @constraints = {}
     end
 
-    def add_constraint name, constraint
+    def add_constraint(name, *constraint)
       puts "adding constraint #{name}: #{constraint.inspect}"
       if constraint.is_a? String
         @constraints[name] = lambda { |mail| mail.send(name.to_sym) == constraint }
       elsif constraint.is_a? Array
         @constraints[name] = lambda { |mail| mail.send(name.to_sym) == constraint }
       elsif constraint.is_a? Regexp
+        @constraints[name] = lambda { |mail| mail.send(name.to_sym) =~ constraint }
       elsif constraint.is_a? Proc
+        @constraints[name] = lambda { |mail| constraint.call(mail.send(name.to_sym)) }
       end
     end
 
     def parse data
       valid = @constraints.inject(true) do |product, constraint|
         print "checking #{constraint[0]}... "
-        product &= constraint[-1].call(data)
-        puts (product ? 'OK' : 'Fail')
+        test = constraint[-1].call(data)
+        product &= test
+        puts (test ? 'OK' : 'Fail')
         product
       end
 
