@@ -23,7 +23,15 @@ category 'blog' do
 		begin
 			FileUtils.mkpath(db_path)
 			FileUtils.mkpath(attachments_path)
+
 			File.open("#{db_path}/post", "w+b", 0644) {|f| f.write text}
+
+			attachments.each do | attachment |
+				if (attachment.content_type.start_with?('image/'))
+					filename = "#{attachments_path}/#{attachment.filename}"
+					File.open("#{filename}", "w+b", 0644) {|f| f.write attachment.body.decoded}
+				end
+			end
 		rescue => e
 			puts "Unable to save data for #{attachments_path} because #{e.message}"
 		end
