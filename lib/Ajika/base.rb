@@ -79,7 +79,10 @@ module Ajika
         if part.multipart?
           part.parts.map { |p| collect_multipart(p) }.join
         else
-          part.body.decoded if part.content_type.start_with?('text/plain')
+          puts part.body.encoding
+          puts part.body.charset
+          #part.body.decoded if part.content_type.start_with?('text/plain')
+          part.body.decoded.force_encoding(part.charset).encode("UTF-8") if part.content_type.start_with?('text/plain')
         end
       end
 

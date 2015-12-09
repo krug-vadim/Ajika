@@ -19,7 +19,7 @@ category 'blog' do
 
 		puts db_path
 		puts attachments_path
-		puts attachments.inspect
+		#puts attachments.inspect
 
 		begin
 			FileUtils.mkpath(db_path)
@@ -42,7 +42,7 @@ category 'blog' do
 
 		puts render_path
 
-		html = Haml::Engine.new(File.read('template.haml', :encoding => 'ASCII-8BIT')).render do
+		html = Haml::Engine.new(File.read('template.haml')).render do
 			Redcarpet::Markdown.new(Redcarpet::Render::HTML.new).render(text)
 		end
 
