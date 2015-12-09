@@ -1,7 +1,8 @@
 require 'mail'
+require 'mail-gpg'
 
 module Ajika
-  CONSTRAINT_REGEXP = /^if_(\w+)$/
+  CONSTRAINT_REGEXP = /^if_([\w\?]+)$/
   ACTION_REGEXP = /^do_(\w+)$/
 
   class Category
@@ -18,6 +19,8 @@ module Ajika
         lambda { |mail| mail.send(name.to_sym) == constraint }
       elsif constraint.is_a? Regexp
         lambda { |mail| mail.send(name.to_sym) =~ constraint }
+      elsif constraint.is_a?(TrueClass) || constraint.is_a?(FalseClass) || constraint.is_a?(NilClass)
+        lambda { |mail| mail.send(name.to_sym) == constraint }
       elsif constraint.is_a? Proc
         lambda { |mail| constraint.call(mail.send(name.to_sym)) }
       else
@@ -29,7 +32,7 @@ module Ajika
       puts "adding constraint #{name}: #{constraints.inspect}"
 
       @constraints[name] = lambda do |mail|
-        constraints.map{ |c| make_constraint(name, c) }.inject(true) { |p,d| p &= d.call(mail) }
+        constraints.map{ |c| make_constraint(name, c) }.inject(false) { |p,d| p |= d.call(mail) }
       end
     end
 
@@ -79,8 +82,6 @@ module Ajika
         if part.multipart?
           part.parts.map { |p| collect_multipart(p) }.join
         else
-          puts part.body.encoding
-          puts part.body.charset
           #part.body.decoded if part.content_type.start_with?('text/plain')
           part.body.decoded.force_encoding(part.charset).encode("UTF-8") if part.content_type.start_with?('text/plain')
         end
@@ -88,6 +89,12 @@ module Ajika
 
       def run data
         mail = Mail.new(data)
+
+        puts mail.signed?
+        verified = mail.verify
+        puts "signature(s) valid: #{verified.signature_valid?}"
+        puts "message signed by: #{verified.signatures.map{|sig|sig.from}.join("\n")}"
+        #raise
 
         meta = {:date => mail.date}
         text = collect_multipart(mail)
