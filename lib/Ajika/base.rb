@@ -90,12 +90,6 @@ module Ajika
       def run data
         mail = Mail.new(data)
 
-        puts mail.signed?
-        verified = mail.verify
-        puts "signature(s) valid: #{verified.signature_valid?}"
-        puts "message signed by: #{verified.signatures.map{|sig|sig.from}.join("\n")}"
-        #raise
-
         meta = {:date => mail.date}
         text = collect_multipart(mail)
 
@@ -117,7 +111,11 @@ module Ajika
 
         if args.first =~ CONSTRAINT_REGEXP
           puts "we need check #{$1}"
-          @categories[-1].add_constraint($1, *args[1..-1])
+          constraints = args[1..-1]
+          constraints << block if block_given?
+          puts constraints.inspect
+
+          @categories[-1].add_constraint($1, *constraints)
         elsif args.first =~ ACTION_REGEXP
           puts "we need action #{$1}"
           @categories[-1].add_action($1, *args[1..-1])

@@ -12,6 +12,7 @@ category 'blog' do
 	if_subject  //, '', nil
 	#if_key     'key'
 	if_signed? true
+	if_verify  do |v| v.signatures.map{|sig|sig.from =~ /alice/ }.inject(false) {|d,x| d |= x } end
 
 	action 'db' do |mail, text, attachments|
 		path_suffix = mail[:date].strftime("%Y-%m/%d%H%M%S")
