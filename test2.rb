@@ -11,8 +11,9 @@ category 'blog' do
 	#if_to      ['post@post.io']
 	if_subject  //, '', nil
 	#if_key     'key'
-	if_signed? true
-	if_verify  do |v| v.signatures.map{|sig|sig.from =~ /alice/ }.inject(false) {|d,x| d |= x } end
+	#if_signed? true
+	#if_verify  do |v| v.signatures.map{|sig|sig.from =~ /alice/ }.inject(false) {|d,x| d |= x } end
+
 
 	action 'db' do |mail, text, attachments|
 		path_suffix = mail[:date].strftime("%Y-%m/%d%H%M%S")
@@ -59,6 +60,18 @@ category 'blog' do
 		rescue => e
 			puts "Unable to save data for #{attachments_path} because #{e.message}"
 		end
+	end
+
+	action 'rebuild_index' do
+		index_path = "#{__dir__}/www"
+		index_file = "#{index_path}/index.html"
+
+		entries = Dir.entries(index_path).select {|entry| File.directory? File.join(index_path,entry) and !(entry =='.' || entry == '..') }
+		entries.map!{|x| x + '/'}
+		puts entries.inspect
+
+		html = Haml::Engine.new(File.read('index.haml')).render(Object.new, :entries => entries)
+		File.open("#{index_file}", "w+b", 0644) {|f| f.write html}
 	end
 end
 

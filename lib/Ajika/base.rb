@@ -107,14 +107,10 @@ module Ajika
       end
 
       def method_missing(*args, &block)
-        puts args.inspect
-
         if args.first =~ CONSTRAINT_REGEXP
           puts "we need check #{$1}"
           constraints = args[1..-1]
           constraints << block if block_given?
-          puts constraints.inspect
-
           @categories[-1].add_constraint($1, *constraints)
         elsif args.first =~ ACTION_REGEXP
           puts "we need action #{$1}"
