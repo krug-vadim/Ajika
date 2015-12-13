@@ -14,7 +14,6 @@ category 'blog' do
 	#if_signed? true
 	#if_verify  do |v| v.signatures.map{|sig|sig.from =~ /alice/ }.inject(false) {|d,x| d |= x } end
 
-
 	action 'db' do |mail, text, attachments|
 		path_suffix = mail[:date].strftime("%Y-%m/%d%H%M%S")
 		db_path = "#{__dir__}/#{path_suffix}"
@@ -45,7 +44,7 @@ category 'blog' do
 		attachments_path = render_path
 		puts render_path
 
-		html = Haml::Engine.new(File.read('template.haml')).render do
+		html = Haml::Engine.new(File.read('blog_page.haml')).render(Object.new, mail) do
 			Redcarpet::Markdown.new(Redcarpet::Render::HTML.new).render(text)
 		end
 
@@ -62,13 +61,13 @@ category 'blog' do
 		end
 	end
 
-	action 'rebuild_index' do
+	action 'index' do
 		index_path = "#{__dir__}/www"
 		index_file = "#{index_path}/index.html"
 
-		entries = Dir.entries(index_path).select {|entry| File.directory? File.join(index_path,entry) and !(entry =='.' || entry == '..') }
-		entries.map!{|x| x + '/'}
-		puts entries.inspect
+		entries = Dir.entries(index_path).select { |entry| File.directory?(File.join(index_path,entry)) and !(entry =='.' || entry == '..') }
+		entries.map!{|x| File.join(index_path, x)}
+		entries.map!{|x| Dir.entries(x).select { |entry| File.directory?(File.join(x, entry)) and !(entry =='.' || entry == '..') }.map {|t| File.join(x,t)} }
 
 		html = Haml::Engine.new(File.read('index.haml')).render(Object.new, :entries => entries)
 		File.open("#{index_file}", "w+b", 0644) {|f| f.write html}
