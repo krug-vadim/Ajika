@@ -90,7 +90,12 @@ module Ajika
       def run data
         mail = Mail.new(data)
 
-        meta = {:date => mail.date, :from => mail.from, :to => mail.to, :subj => mail.subject}
+        meta = {:date => mail.date,
+                :from => mail.from,
+                :to => mail.to,
+                :subj => mail.subject,
+                :names_from => mail[:from].addrs.map{|x| x.display_name}
+              }
         text = collect_multipart(mail)
 
         attachments = {}
