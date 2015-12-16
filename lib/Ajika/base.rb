@@ -82,7 +82,6 @@ module Ajika
         if part.multipart?
           part.parts.map { |p| collect_multipart(p) }.join
         else
-          #part.body.decoded if part.content_type.start_with?('text/plain')
           part.body.decoded.force_encoding(part.charset).encode("UTF-8") if part.content_type.start_with?('text/plain')
         end
       end
@@ -95,8 +94,13 @@ module Ajika
                 :to => mail.to,
                 :subj => mail.subject,
                 :names_from => mail[:from].addrs.map{|x| x.display_name}
-              }
-        text = collect_multipart(mail)
+               }
+
+        text = if mail.signed?
+                 collect_multipart(mail.verify).split("\n")[3 .. -2].join("\n")
+               else
+                 collect_multipart(mail)
+               end
 
         attachments = {}
         mail.attachments.each do | attachment |
