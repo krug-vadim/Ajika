@@ -5,6 +5,10 @@ module Ajika
   CONSTRAINT_REGEXP = /^if_([\w\?]+)$/
   ACTION_REGEXP = /^do_(\w+)$/
 
+  PGP_SIGN_START = '-----BEGIN PGP SIGNED MESSAGE-----'
+  PGP_SIGN_STOP  = '-----END PGP SIGNED MESSAGE-----'
+  PGP_SIGN_HASH  = /^[hH][aA][sS][hH]\:/
+
   class Category
     attr_reader :name
 
@@ -82,7 +86,13 @@ module Ajika
         if part.multipart?
           part.parts.map { |p| collect_multipart(p) }.join
         else
-          part.body.decoded.force_encoding(part.charset).encode("UTF-8") if part.content_type.start_with?('text/plain')
+          if part.content_type.start_with?('text/plain')
+            if part.body.charset
+              part.body.decoded.force_encoding(part.charset).encode("UTF-8")
+            else
+              part.body.raw_source.force_encoding("UTF-8")
+            end
+          end
         end
       end
 
@@ -97,7 +107,9 @@ module Ajika
                }
 
         text = if mail.signed?
-                 collect_multipart(mail.verify).split("\n")[3 .. -2].join("\n")
+                 collect_multipart(mail.verify).split("\n").reject do |x|
+                   x == PGP_SIGN_START || x == PGP_SIGN_STOP || x =~ PGP_SIGN_HASH
+                 end.join("\n")
                else
                  collect_multipart(mail)
                end
