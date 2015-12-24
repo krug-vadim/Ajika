@@ -108,8 +108,8 @@ module Ajika
 
         text = if mail.signed?
                  collect_multipart(mail.verify).split("\n").reject do |x|
-                   x.strip!
-                   x == PGP_SIGN_START || x == PGP_SIGN_STOP || x =~ PGP_SIGN_HASH
+                   line = x.strip
+                   line == PGP_SIGN_START || line == PGP_SIGN_STOP || line =~ PGP_SIGN_HASH
                  end.join("\n")
                else
                  collect_multipart(mail)
