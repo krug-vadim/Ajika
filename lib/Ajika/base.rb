@@ -70,7 +70,7 @@ module Ajika
 
   class Application
     module DSL
-      def category name
+      def category(name)
         @categories ||= []
         @categories << Category.new(name)
         yield self if block_given?
@@ -137,6 +137,8 @@ module Ajika
         elsif args.first =~ ACTION_REGEXP
           puts "we need action #{$1}"
           @categories[-1].add_action($1, *args[1..-1])
+        else
+          super *args, &block
         end
       end
     end
